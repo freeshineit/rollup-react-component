@@ -1,6 +1,5 @@
 import './style';
 
-import EventEmitter, { type EventCallbackFn, type EventEmitterInter } from './main';
+import RollupReactComponent from './main';
 
-export type { EventCallbackFn, EventEmitterInter };
-export default EventEmitter;
+export default RollupReactComponent;

@@ -15,7 +15,8 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "esModuleInterop": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "jsx": "react-jsx"
   },
   "include": ["src/**/*", "config/**/*.ts", "__tests__", "jest.config.ts", "jest.setup.ts"],
   "exclude": ["node_modules", "dist", "coverage", "docs", "example"],

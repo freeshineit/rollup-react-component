@@ -21,31 +21,16 @@
   </head>
 
   <body>
-    <div id="root">
-      <h1 id="title">Rollup Typescript Lib</h1>
-    </div>
+    <div id="root"></div>
     <script src="./index.umd.js"></script>
     <script>
       (function () {
-        const eventEmitter = new RollupReactComponent();
-
-        eventEmitter.on('click', () => {
-          console.log('click');
+        const eventEmitter = new RollupReactComponent({
+          id: document.getElementById('root'),
         });
-
-        eventEmitter.on('click', () => {
-          console.log('click');
-        });
-
-        eventEmitter.emit('click');
-
-        const title = document.getElementById('title');
-
-        title.addEventListener('click', () => {
-          eventEmitter.emit('click');
-        });
-
-        console.log(eventEmitter.version());
+        // const eventEmitter1 = new RollupReactComponent({
+        //   id: "root1"
+        // });
       })();
     </script>
   </body>

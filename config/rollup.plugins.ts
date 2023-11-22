@@ -24,23 +24,24 @@ export default [
   eslint({
     throwOnError: true, // lint 结果有错误将会抛出异常
     throwOnWarning: true,
-    include: ['src/**/*.ts', 'src/**/*.js'],
+    include: ['src/**/*.{ts,tsx}', 'src/**/*.{js,jsx}'],
     exclude: ['node_modules/**', '**/__tests__/**'],
   }),
   typescript({
     exclude: ['**/__tests__/**/*.{ts,js}'],
-    include: ['**/src/**/*.{ts,js}'],
+    include: ['**/src/**/*.{ts,js,jsx,tsx}'],
     sourceMap: isDev,
     inlineSources: isDev,
     declaration: !isDev,
     declarationDir: !isDev ? 'dist/types' : undefined,
   }),
   resolve(),
-  commonjs({ extensions: ['.js', '.ts'] }),
+  commonjs({ extensions: ['.js', 'jsx', '.ts', 'tsx'] }),
   babel({ babelHelpers: 'bundled' }),
   replace({
     preventAssignment: true,
     __VERSION__: pkg.version,
+    'process.env.NODE_ENV': isDev ? '"development"' : '"production"',
   }),
   postcss({
     plugins: [autoprefixer(), cssnano({ preset: 'default' })],
