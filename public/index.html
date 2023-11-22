@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Rollup Typescript Lib</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+      }
+
+      #root {
+        display: flex;
+        height: 100vh;
+        justify-content: center;
+        align-items: center;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="root">
+      <h1 id="title">Rollup Typescript Lib</h1>
+    </div>
+    <script src="./index.umd.js"></script>
+    <script>
+      (function () {
+        const eventEmitter = new RollupReactComponent();
+
+        eventEmitter.on('click', () => {
+          console.log('click');
+        });
+
+        eventEmitter.on('click', () => {
+          console.log('click');
+        });
+
+        eventEmitter.emit('click');
+
+        const title = document.getElementById('title');
+
+        title.addEventListener('click', () => {
+          eventEmitter.emit('click');
+        });
+
+        console.log(eventEmitter.version());
+      })();
+    </script>
+  </body>
+</html>
