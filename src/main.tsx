@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-
+import Page from './page';
 interface Options {
   id: string | HTMLElement;
 }
@@ -15,7 +15,7 @@ class RollupReactComponent {
   }
 
   render() {
-    return createRoot(this.$container).render(<div id="title">Rollup Typescript</div>);
+    return createRoot(this.$container).render(<Page />);
   }
 }
 
