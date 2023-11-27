@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>可拖动的时间轴</title>
+    <style>
+      canvas {
+        border: 1px solid #000;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+
+  <body>
+    <canvas id="timelineCanvas" width="800" height="50"></canvas>
+
+    <script>
+      var canvas = document.getElementById('timelineCanvas');
+      var context = canvas.getContext('2d');
+      var isDragging = false;
+      var offsetX = 0;
+      var totalSeconds = 0;
+
+      // 初始化时间轴
+      drawTimeline();
+
+      // 绘制时间轴
+      function drawTimeline() {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = '#b3b3b3';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制拖动条
+        context.fillStyle = '#3498db';
+        context.fillRect(offsetX, 0, 50, canvas.height);
+
+        // 计算时分秒
+        var hours = Math.floor(totalSeconds / 3600);
+        var minutes = Math.floor((totalSeconds % 3600) / 60);
+        var seconds = totalSeconds % 60;
+
+        // 显示时分秒
+        context.fillStyle = '#000';
+        context.font = '16px Arial';
+        context.fillText(
+          formatTime(hours) + ':' + formatTime(minutes) + ':' + formatTime(seconds),
+          10,
+          20,
+        );
+      }
+
+      // 格式化时间，确保时分秒为两位数
+      function formatTime(time) {
+        return time < 10 ? '0' + time : time;
+      }
+
+      // 鼠标按下事件
+      canvas.addEventListener('mousedown', function (e) {
+        isDragging = true;
+        updateTimeline(e.clientX);
+      });
+
+      // 鼠标移动事件
+      canvas.addEventListener('mousemove', function (e) {
+        if (isDragging) {
+          updateTimeline(e.clientX);
+        }
+      });
+
+      // 鼠标释放事件
+      canvas.addEventListener('mouseup', function () {
+        isDragging = false;
+      });
+
+      // 鼠标离开画布事件
+      canvas.addEventListener('mouseleave', function () {
+        isDragging = false;
+      });
+
+      // 更新时间轴
+      function updateTimeline(clientX) {
+        offsetX = clientX - canvas.getBoundingClientRect().left;
+        totalSeconds = Math.floor(offsetX / (canvas.width / 86400)); // 86400秒对应24小时
+        drawTimeline();
+      }
+    </script>
+  </body>
+</html>

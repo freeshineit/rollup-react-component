@@ -1,5 +1,6 @@
 import { type Options } from '../TimeAxis';
 import { defaultOptions } from '../constant';
+import { merge } from 'lodash-es';
 
 /**
  * @description 合并配置项
@@ -7,5 +8,5 @@ import { defaultOptions } from '../constant';
  * @returns {Required<Omit<Options, "container">>}
  */
 export const mergeOptions = (options: Options) => {
-  return Object.assign(options, defaultOptions);
+  return merge(options, defaultOptions);
 };

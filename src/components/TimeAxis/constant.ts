@@ -1,17 +1,40 @@
-import { type Options } from './TimeAxis';
-
 const lineStyle = {
   strokeStyle: '#FFF',
-  lineWidth: 3,
+  lineWidth: 2,
 };
 
-export const defaultOptions: Required<Omit<Options, 'container'>> = {
+const graduationStyle = {
+  strokeStyle: 'rgba(255,255,255,0.8)',
+  lineWidth: 2,
+};
+
+const gapTextStyle = {
+  font: '20px',
+  fillStyle: '#fff',
+};
+
+/** @type {*} */
+export const defaultOptions = {
   height: 48,
-  point: {
-    ...lineStyle,
-    space: [1, 10, 10], // [1s, 10px, 10个间隔]  注意： 线的宽度不要大于 space[1]
+  cursor: {
+    height: 20,
+    style: lineStyle,
+    textOffset: 30,
+    textStyle: gapTextStyle,
+  },
+  // 刻度
+  graduation: {
+    second: 1, // 1s
+    space: 10, // 10px
+    height: 6, // 10px
+    style: graduationStyle,
+    gap: 10, // 10个
+    gapHeight: 10, // 10px
+    gapStyle: graduationStyle,
+    gapTextStyle,
   },
   currentLineStyle: lineStyle,
+  current: Math.floor(new Date().getTime() / 1000),
 };
 
 /** dpr = 2 */

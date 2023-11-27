@@ -1,31 +1,24 @@
-import { CANVAS_DPR } from './constant';
+import { CANVAS_DPR, type defaultOptions } from './constant';
 import { mergeOptions } from './utils/mergeOptions';
-import { timeHMSArray } from './utils/timeArray';
+import { secondsToHMS } from './utils/time';
+import { timeToHMSs } from './utils/timeArray';
+import { throttle } from 'lodash-es';
 
-export interface LineStyle {
-  strokeStyle?: string | CanvasGradient | CanvasPattern;
-  lineWidth?: number;
-}
-
-export interface Options {
-  container: string | HTMLElement;
-  height?: number;
-  point?: {
-    /**
-     * 时间线
-     * @default [1, 10, 10] //  [间隔秒(s), 间隔宽(px), 隔10个间隔画一个高位] 注意： 线的宽度不要大于 space[1]
-     *
-     */
-    space?: number[]; // [间隔秒, 间隔宽, ]
-  } & LineStyle;
-  currentLineStyle?: LineStyle;
-}
+export type Options = Partial<typeof defaultOptions> & { container: string | HTMLElement };
 
 class TimeAxis {
   $container: HTMLElement;
   private readonly _options: Required<Options>;
   private $canvas: HTMLCanvasElement;
   private _context: CanvasRenderingContext2D;
+
+  // 创建 ResizeObserver 实例，并传入回调函数
+  _resizeObserver: ResizeObserver;
+
+  _timeHMSArray: string[] = [];
+
+  _mouseX = 0;
+  _mouseY = 0;
 
   constructor(options: Options) {
     if (typeof options.container === 'string') {
@@ -37,7 +30,17 @@ class TimeAxis {
       throw new Error('container is required!');
     }
     this._options = mergeOptions(options); // Object.assign({}, defaultOptions, );
-    if (options) this.render();
+
+    this._resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === this.$container) {
+          this.render();
+        }
+      }
+    });
+
+    this.render();
+    this.registerEvent();
   }
 
   render() {
@@ -45,41 +48,53 @@ class TimeAxis {
       const $canvas = document.createElement('canvas');
       this.$canvas = $canvas;
       this._context = $canvas.getContext('2d') as CanvasRenderingContext2D;
+      this.$container.appendChild(this.$canvas);
     }
-
     this._renderWH(this.$canvas);
-    this.registerEvent();
-
-    this.$container.appendChild(this.$canvas);
+    this._setTimeHMSArray();
     // draw canvas
     this.draw();
   }
 
+  _onMousemove(e: MouseEvent) {
+    const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
+    const relativeX = e.clientX - rect.x;
+    const relativeY = e.clientY - rect.y;
+    this._mouseX = relativeX < 0 ? 0 : relativeX;
+    this._mouseY = relativeY < 0 ? 0 : relativeY;
+
+    this.draw();
+    this._drawCursor(relativeX);
+    this._drawCurrentPoint();
+  }
+
+  _onMouseOut() {
+    console.log('_onMouseOut');
+    this.draw();
+  }
+
+  _clearCanvas() {
+    this._context.clearRect(0, 0, this.$canvas.width, this.$canvas.height);
+  }
+
   registerEvent() {
+    console.log('registerEvent');
     // prettier-ignore
-    this.$canvas.addEventListener('mousemove',(e: MouseEvent) => {
-        const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
-        let relativeX = e.clientX - rect.x;
-        let relativeY = e.clientY - rect.y;
-        relativeX = relativeX < 0 ? 0 : relativeX
-        relativeY = relativeY < 0 ? 0 : relativeY
-        console.log('relative position', relativeX, relativeY);
-      },
-      false,
-    );
+    this.$canvas.addEventListener('mousemove', throttle((event) =>this._onMousemove(event), 50), false);
 
     // mouse leave
     // prettier-ignore
-    this.$canvas.addEventListener('mouseleave', () => {}, false);
     this.$canvas.addEventListener('mouseup', () => {}, false);
-    this.$canvas.addEventListener('mouseout', () => {}, false);
+    // prettier-ignore
+    this.$canvas.addEventListener('mouseleave', throttle(() =>this._onMouseOut(), 80), false);
+
+    // prettier-ignore
+    this.$canvas.addEventListener('mouseout', throttle(() => this._onMouseOut(), 80),false);
     // prettier-ignore
     this.$canvas.addEventListener('mousedown', () => {}, false);
 
-    // this.$container.addEventListener('resize', () => {
-    //   console.log('container resizes');
-    //   this.render();
-    // });
+    // div resize
+    this._resizeObserver.observe(this.$container);
   }
 
   _renderWH($canvas: HTMLCanvasElement) {
@@ -90,45 +105,108 @@ class TimeAxis {
     $canvas.style.height = this._options.height + 'px';
   }
 
+  /**
+   * @description 绘制鼠标焦点
+   * @param {number} x 鼠标x轴位置 （没有dpr）
+   */
+  _drawCursor(x: number) {
+    const { style, second, space } = this._options.graduation;
+    // 计算鼠标所在位置的时间刻度
+    const text = secondsToHMS(
+      Math.floor(((x + style.lineWidth / 2) / space) * second * CANVAS_DPR),
+    );
+    // 绘制文本
+    this._drawLine(x * CANVAS_DPR, this._options.cursor.height, this._options.cursor.style);
+    // prettier-ignore
+    this._drawText(text, x, this._options.cursor.height, this._options.cursor.textStyle);
+  }
+
   draw() {
-    this._context.clearRect(0, 0, this.$canvas.width, this.$canvas.height);
+    // clear canvas
+    this._clearCanvas();
+    // all time point
+    this._drawGraduation();
     // current time
-    const currentLineWidth = this._options.currentLineStyle.lineWidth as number;
+    this._drawCurrentPoint();
+  }
+
+  _drawCurrentPoint() {
+    const currentLineWidth = this._options.currentLineStyle.lineWidth;
     const centerPosition = this.$canvas.width / 2 - currentLineWidth / 2;
     this._drawLine(centerPosition, this._options.height, this._options.currentLineStyle);
-    // all time point
-    this._drawTimePoint();
   }
 
   /**
-   * @description 绘制时间点
+   * @description 绘制时间刻度
    */
-  _drawTimePoint() {
-    // const allPointNum = 3600 / (this._options.point.space as number[])[1];
-    const [, gapW, gap] = this._options.point.space as number[];
-    const canDrawPoint = Math.ceil(this.$canvas.width / gapW) + 1;
+  _drawGraduation() {
+    const { space, height, gap, gapHeight, style, gapStyle } = this._options.graduation;
+    const canDrawPoint = Math.ceil(this.$canvas.width / space) + 1;
 
     for (let i = 0; i < canDrawPoint; i++) {
-      const h = i % gap === 0 ? 10 : 6;
-      this._drawLine(gapW * i, h, this._options.point);
+      const isGap = i % gap === 0;
+      const h = (isGap ? gapHeight : height) * CANVAS_DPR;
+      this._drawLine(space * i, h, isGap ? style : gapStyle);
     }
 
-    timeHMSArray(this._options.point.space as number[]);
+    this._drawGapTimeText();
   }
 
   /**
    * @description 绘制当前时间节点
    */
-  _drawLine(x: number, height: number, lineStyle: LineStyle) {
-    for (const key in lineStyle) {
-      (this._context as any)[key] = (this._options.currentLineStyle as any)[key];
-    }
+  _drawLine(x: number, height: number, style: Record<string, any>) {
+    this._drawStyle(style);
 
     this._context.beginPath();
-    this._context.moveTo(x, 0);
-    this._context.lineTo(x, height * CANVAS_DPR); // 终点坐标
+    this._context.moveTo(x * CANVAS_DPR, 0);
+    this._context.lineTo(x * CANVAS_DPR, height * CANVAS_DPR); // 终点坐标
     this._context.stroke(); // 绘制线条
     this._context.closePath(); // 结束路径
+  }
+
+  /**
+   * @description 绘制当前时间节点
+   */
+  _drawText(text: string, x: number, y: number, style: Record<string, any>) {
+    this._drawStyle(style);
+    this._context.fillText(text, x * CANVAS_DPR, y * CANVAS_DPR);
+  }
+
+  /**
+   * @description 绘制当前时间节点
+   */
+  _drawGapTimeText() {
+    const { gap, space, gapTextStyle, gapHeight } = this._options.graduation;
+    const len = this._timeHMSArray.length;
+
+    for (let i = 0; i <= len; ) {
+      // prettier-ignore
+      this._drawText(this._timeHMSArray[i], i * space * gap - 29, gapHeight, gapTextStyle);
+      i++;
+    }
+  }
+
+  /**
+   * @description 设置所有时刻点
+   */
+  _setTimeHMSArray() {
+    const { second, gap } = this._options.graduation;
+    this._timeHMSArray = timeToHMSs(second, gap);
+  }
+
+  /**
+   * @description 绘制样式
+   * @param style
+   */
+  _drawStyle(style: Record<string, any>) {
+    for (const key in style) {
+      (this._context as any)[key] = style[key];
+    }
+  }
+
+  destroy() {
+    this._resizeObserver.unobserve(this.$container);
   }
 
   /**
