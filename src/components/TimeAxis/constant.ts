@@ -1,15 +1,15 @@
 const lineStyle = {
   strokeStyle: '#FFF',
-  lineWidth: 2,
+  lineWidth: 1,
 };
 
 const graduationStyle = {
   strokeStyle: 'rgba(255,255,255,0.8)',
-  lineWidth: 2,
+  lineWidth: 1,
 };
 
 const gapTextStyle = {
-  font: '20px',
+  font: '10px Microsoft YaHei',
   fillStyle: '#fff',
 };
 
@@ -17,21 +17,22 @@ const gapTextStyle = {
 export const defaultOptions = {
   height: 48,
   cursor: {
-    height: 20,
+    height: 12,
     style: lineStyle,
-    textOffset: 30,
+    textOffset: 34,
     textStyle: gapTextStyle,
   },
   // 刻度
   graduation: {
     second: 1, // 1s
-    space: 10, // 10px
-    height: 6, // 10px
+    space: 5, // 10px
+    height: 5, // 10px
     style: graduationStyle,
     gap: 10, // 10个
-    gapHeight: 10, // 10px
+    gapHeight: 8, // 10px
     gapStyle: graduationStyle,
     gapTextStyle,
+    gapTextOffset: 22,
   },
   currentLineStyle: lineStyle,
   current: Math.floor(new Date().getTime() / 1000),

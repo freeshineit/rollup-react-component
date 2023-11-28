@@ -34,13 +34,13 @@ class TimeAxis {
     this._resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.target === this.$container) {
-          this.render();
+          throttle(() => this.render(), 50)();
         }
       }
     });
 
     this.render();
-    this.registerEvent();
+    this._registerEvent();
   }
 
   render() {
@@ -77,7 +77,7 @@ class TimeAxis {
     this._context.clearRect(0, 0, this.$canvas.width, this.$canvas.height);
   }
 
-  registerEvent() {
+  _registerEvent() {
     console.log('registerEvent');
     // prettier-ignore
     this.$canvas.addEventListener('mousemove', throttle((event) =>this._onMousemove(event), 50), false);
@@ -112,13 +112,12 @@ class TimeAxis {
   _drawCursor(x: number) {
     const { style, second, space } = this._options.graduation;
     // 计算鼠标所在位置的时间刻度
-    const text = secondsToHMS(
-      Math.floor(((x + style.lineWidth / 2) / space) * second * CANVAS_DPR),
-    );
+    const text = secondsToHMS(Math.floor(((x + style.lineWidth / 2) / space) * second));
+
     // 绘制文本
-    this._drawLine(x * CANVAS_DPR, this._options.cursor.height, this._options.cursor.style);
+    this._drawLine(x, this._options.cursor.height, this._LineStyleDPR(this._options.cursor.style));
     // prettier-ignore
-    this._drawText(text, x, this._options.cursor.height, this._options.cursor.textStyle);
+    this._drawText(text, (x - 9 * CANVAS_DPR), this._options.cursor.textOffset, this._TextStyleDPR(this._options.cursor.textStyle));
   }
 
   draw() {
@@ -132,8 +131,12 @@ class TimeAxis {
 
   _drawCurrentPoint() {
     const currentLineWidth = this._options.currentLineStyle.lineWidth;
-    const centerPosition = this.$canvas.width / 2 - currentLineWidth / 2;
-    this._drawLine(centerPosition, this._options.height, this._options.currentLineStyle);
+    const centerPosition = this.$canvas.width / 2 / CANVAS_DPR - currentLineWidth / 2;
+    this._drawLine(
+      centerPosition,
+      this._options.height,
+      this._LineStyleDPR(this._options.currentLineStyle),
+    );
   }
 
   /**
@@ -143,10 +146,13 @@ class TimeAxis {
     const { space, height, gap, gapHeight, style, gapStyle } = this._options.graduation;
     const canDrawPoint = Math.ceil(this.$canvas.width / space) + 1;
 
+    const lineStyle = this._LineStyleDPR(style);
+    const lineGapStyle = this._LineStyleDPR(gapStyle);
+
     for (let i = 0; i < canDrawPoint; i++) {
       const isGap = i % gap === 0;
-      const h = (isGap ? gapHeight : height) * CANVAS_DPR;
-      this._drawLine(space * i, h, isGap ? style : gapStyle);
+      const h = isGap ? gapHeight : height;
+      this._drawLine(space * i, h, isGap ? lineStyle : lineGapStyle);
     }
 
     this._drawGapTimeText();
@@ -177,12 +183,12 @@ class TimeAxis {
    * @description 绘制当前时间节点
    */
   _drawGapTimeText() {
-    const { gap, space, gapTextStyle, gapHeight } = this._options.graduation;
+    const { gap, space, gapTextStyle, gapTextOffset } = this._options.graduation;
     const len = this._timeHMSArray.length;
-
+    const style = this._TextStyleDPR(gapTextStyle);
     for (let i = 0; i <= len; ) {
       // prettier-ignore
-      this._drawText(this._timeHMSArray[i], i * space * gap - 29, gapHeight, gapTextStyle);
+      this._drawText(this._timeHMSArray[i], i * space * gap - 9 * CANVAS_DPR, gapTextOffset, style);
       i++;
     }
   }
@@ -203,6 +209,23 @@ class TimeAxis {
     for (const key in style) {
       (this._context as any)[key] = style[key];
     }
+  }
+
+  _LineStyleDPR(style: { lineWidth: number }) {
+    return {
+      ...style,
+      lineWidth: style.lineWidth * CANVAS_DPR,
+    };
+  }
+
+  _TextStyleDPR(style: { font: string }) {
+    return {
+      ...style,
+      font: style.font.replace(/\s*(\d+)px/, (_: any, fontSize: string) => {
+        const newSize = parseInt(fontSize) * CANVAS_DPR;
+        return newSize + 'px';
+      }),
+    };
   }
 
   destroy() {
