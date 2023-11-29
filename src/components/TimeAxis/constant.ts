@@ -4,7 +4,7 @@ const lineStyle = {
 };
 
 const graduationStyle = {
-  strokeStyle: 'rgba(255,255,255,0.8)',
+  strokeStyle: '#FFF',
   lineWidth: 1,
 };
 
@@ -13,7 +13,6 @@ const gapTextStyle = {
   fillStyle: '#fff',
 };
 
-/** @type {*} */
 export const defaultOptions = {
   height: 48,
   cursor: {
@@ -28,9 +27,9 @@ export const defaultOptions = {
     space: 5, // 10px
     height: 5, // 10px
     style: graduationStyle,
-    gap: 10, // 10个
-    gapHeight: 8, // 10px
-    gapStyle: graduationStyle,
+    gap: 10, // 10个 space
+    gapHeight: 8, // 8px
+    gapStyle: { ...graduationStyle, strokeStyle: '#0099e5' },
     gapTextStyle,
     gapTextOffset: 22,
   },

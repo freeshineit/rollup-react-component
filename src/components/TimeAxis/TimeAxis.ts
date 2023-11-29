@@ -3,14 +3,17 @@ import { mergeOptions } from './utils/mergeOptions';
 import { secondsToHMS } from './utils/time';
 import { timeToHMSs } from './utils/timeArray';
 import { throttle } from 'lodash-es';
+import { drawLine, drawText, drawTextStyleDPR, drawLineStyleDPR } from './utils/draw';
+import CursorPoint from './CursorPoint';
+import Block from './Block';
 
 export type Options = Partial<typeof defaultOptions> & { container: string | HTMLElement };
 
 class TimeAxis {
   $container: HTMLElement;
   private readonly _options: Required<Options>;
-  private $canvas: HTMLCanvasElement;
-  private _context: CanvasRenderingContext2D;
+  private readonly $canvas: HTMLCanvasElement;
+  private readonly _context: CanvasRenderingContext2D;
 
   // 创建 ResizeObserver 实例，并传入回调函数
   _resizeObserver: ResizeObserver;
@@ -19,6 +22,9 @@ class TimeAxis {
 
   _mouseX = 0;
   _mouseY = 0;
+
+  _cursorPoint;
+  _block;
 
   constructor(options: Options) {
     if (typeof options.container === 'string') {
@@ -30,6 +36,15 @@ class TimeAxis {
       throw new Error('container is required!');
     }
     this._options = mergeOptions(options); // Object.assign({}, defaultOptions, );
+
+    if (!this.$canvas) {
+      const $canvas = document.createElement('canvas');
+      this.$canvas = $canvas;
+      this._context = $canvas.getContext('2d') as CanvasRenderingContext2D;
+      this.$container.appendChild(this.$canvas);
+    }
+    this._cursorPoint = new CursorPoint(this.$canvas, this._options.cursor);
+    this._block = new Block(this.$canvas, this._options.cursor);
 
     this._resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -44,16 +59,11 @@ class TimeAxis {
   }
 
   render() {
-    if (!this.$canvas) {
-      const $canvas = document.createElement('canvas');
-      this.$canvas = $canvas;
-      this._context = $canvas.getContext('2d') as CanvasRenderingContext2D;
-      this.$container.appendChild(this.$canvas);
-    }
     this._renderWH(this.$canvas);
     this._setTimeHMSArray();
     // draw canvas
     this.draw();
+    this._block.render([]);
   }
 
   _onMousemove(e: MouseEvent) {
@@ -114,10 +124,7 @@ class TimeAxis {
     // 计算鼠标所在位置的时间刻度
     const text = secondsToHMS(Math.floor(((x + style.lineWidth / 2) / space) * second));
 
-    // 绘制文本
-    this._drawLine(x, this._options.cursor.height, this._LineStyleDPR(this._options.cursor.style));
-    // prettier-ignore
-    this._drawText(text, (x - 9 * CANVAS_DPR), this._options.cursor.textOffset, this._TextStyleDPR(this._options.cursor.textStyle));
+    this._cursorPoint.render(text, x);
   }
 
   draw() {
@@ -132,10 +139,11 @@ class TimeAxis {
   _drawCurrentPoint() {
     const currentLineWidth = this._options.currentLineStyle.lineWidth;
     const centerPosition = this.$canvas.width / 2 / CANVAS_DPR - currentLineWidth / 2;
-    this._drawLine(
+    drawLine(
+      this._context,
       centerPosition,
       this._options.height,
-      this._LineStyleDPR(this._options.currentLineStyle),
+      drawLineStyleDPR(this._options.currentLineStyle),
     );
   }
 
@@ -146,13 +154,13 @@ class TimeAxis {
     const { space, height, gap, gapHeight, style, gapStyle } = this._options.graduation;
     const canDrawPoint = Math.ceil(this.$canvas.width / space) + 1;
 
-    const lineStyle = this._LineStyleDPR(style);
-    const lineGapStyle = this._LineStyleDPR(gapStyle);
+    const lineStyle = drawLineStyleDPR(style);
+    const lineGapStyle = drawLineStyleDPR(gapStyle);
 
     for (let i = 0; i < canDrawPoint; i++) {
       const isGap = i % gap === 0;
       const h = isGap ? gapHeight : height;
-      this._drawLine(space * i, h, isGap ? lineStyle : lineGapStyle);
+      drawLine(this._context, space * i, h, isGap ? lineGapStyle : lineStyle);
     }
 
     this._drawGapTimeText();
@@ -161,34 +169,13 @@ class TimeAxis {
   /**
    * @description 绘制当前时间节点
    */
-  _drawLine(x: number, height: number, style: Record<string, any>) {
-    this._drawStyle(style);
-
-    this._context.beginPath();
-    this._context.moveTo(x * CANVAS_DPR, 0);
-    this._context.lineTo(x * CANVAS_DPR, height * CANVAS_DPR); // 终点坐标
-    this._context.stroke(); // 绘制线条
-    this._context.closePath(); // 结束路径
-  }
-
-  /**
-   * @description 绘制当前时间节点
-   */
-  _drawText(text: string, x: number, y: number, style: Record<string, any>) {
-    this._drawStyle(style);
-    this._context.fillText(text, x * CANVAS_DPR, y * CANVAS_DPR);
-  }
-
-  /**
-   * @description 绘制当前时间节点
-   */
   _drawGapTimeText() {
     const { gap, space, gapTextStyle, gapTextOffset } = this._options.graduation;
     const len = this._timeHMSArray.length;
-    const style = this._TextStyleDPR(gapTextStyle);
+    const style = drawTextStyleDPR(gapTextStyle);
     for (let i = 0; i <= len; ) {
       // prettier-ignore
-      this._drawText(this._timeHMSArray[i], i * space * gap - 9 * CANVAS_DPR, gapTextOffset, style);
+      drawText(this._context, this._timeHMSArray[i], i * space * gap , gapTextOffset, style);
       i++;
     }
   }
@@ -199,33 +186,6 @@ class TimeAxis {
   _setTimeHMSArray() {
     const { second, gap } = this._options.graduation;
     this._timeHMSArray = timeToHMSs(second, gap);
-  }
-
-  /**
-   * @description 绘制样式
-   * @param style
-   */
-  _drawStyle(style: Record<string, any>) {
-    for (const key in style) {
-      (this._context as any)[key] = style[key];
-    }
-  }
-
-  _LineStyleDPR(style: { lineWidth: number }) {
-    return {
-      ...style,
-      lineWidth: style.lineWidth * CANVAS_DPR,
-    };
-  }
-
-  _TextStyleDPR(style: { font: string }) {
-    return {
-      ...style,
-      font: style.font.replace(/\s*(\d+)px/, (_: any, fontSize: string) => {
-        const newSize = parseInt(fontSize) * CANVAS_DPR;
-        return newSize + 'px';
-      }),
-    };
   }
 
   destroy() {
